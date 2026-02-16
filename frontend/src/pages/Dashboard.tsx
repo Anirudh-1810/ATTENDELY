@@ -1,0 +1,301 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Navbar } from "@/components/Navbar";
+import { GraduationCap, Plus, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
+import { useAttendanceData } from "@/hooks/useAttendanceData";
+import { calculateStatus } from "@/lib/calculations";
+
+import AddSubjectDialog from "@/components/AddSubjectDialog";
+import SubjectCard from "@/components/SubjectCard";
+import OnboardingWizard from "@/components/OnboardingWizard";
+import { ResponsiveContainer, Legend, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar, PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const { subjects, setSubjects, refetch } = useAttendanceData();
+  const [showAddDialog, setShowAddDialog] = useState(false);
+
+  const totalAttended = subjects.reduce((acc, s) => acc + s.attendedClasses, 0);
+  const totalClasses = subjects.reduce((acc, s) => acc + s.totalClasses, 0);
+  const avgAttendance = totalClasses > 0 ? Math.round((totalAttended / totalClasses) * 100) : 0;
+
+  const handleDeleteSubject = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    const newSubjects = subjects.filter(s => s.id !== id);
+    setSubjects(newSubjects);
+  };
+
+  return (
+    <div className="min-h-screen bg-transparent text-foreground relative z-10">
+      <Navbar />
+
+      <main className="container mx-auto px-4 py-8">
+        {/* Student Details Header */}
+        <div className="mb-8 p-6 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-lg">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-2xl font-bold text-white shadow-lg">
+                {JSON.parse(localStorage.getItem("user") || "{}").name?.charAt(0) || "S"}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">
+                  {JSON.parse(localStorage.getItem("user") || "{}").name || "Student"}
+                </h1>
+                <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-300">
+                  <span className="flex items-center gap-1">
+                    <GraduationCap className="h-4 w-4 text-blue-400" />
+                    {JSON.parse(localStorage.getItem("user") || "{}").course || "Course Not Set"}
+                  </span>
+                  <span className="hidden md:inline text-gray-600">•</span>
+                  <span className="flex items-center gap-1">
+                    <span className="text-purple-400">ID:</span>
+                    {JSON.parse(localStorage.getItem("user") || "{}").universityNumber || "N/A"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 w-full md:w-auto">
+              <div className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-center flex-1 md:flex-none">
+                <p className="text-xs text-gray-400 uppercase">Sem</p>
+                <p className="font-bold text-white">5</p>
+              </div>
+              <div className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-center flex-1 md:flex-none">
+                <p className="text-xs text-gray-400 uppercase">Section</p>
+                <p className="font-bold text-white">A</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Stats Overview */}
+        {subjects.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card className="p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">Overall Attendance</p>
+                  <p className="text-4xl font-bold mt-2">{avgAttendance}%</p>
+                </div>
+                <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center">
+                  <CheckCircle2 className="h-8 w-8" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm font-medium">Total Subjects</p>
+                  <p className="text-4xl font-bold mt-2">{subjects.length}</p>
+                </div>
+                <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center">
+                  <GraduationCap className="h-8 w-8" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6 bg-gradient-to-br from-orange-500 to-red-500 text-white border-0 shadow-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100 text-sm font-medium">At Risk</p>
+                  <p className="text-4xl font-bold mt-2">
+                    {subjects.filter((s) => {
+                      const status = calculateStatus(s);
+                      return status === "high" || status === "critical";
+                    }).length}
+                  </p>
+                </div>
+                <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center">
+                  <AlertTriangle className="h-8 w-8" />
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* Subjects Section */}
+        <div className="space-y-6">
+          {subjects.length > 0 && (
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-bold">Your Subjects</h2>
+              <Button
+                onClick={() => setShowAddDialog(true)}
+                size="lg"
+                className="gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg text-white"
+              >
+                <Plus className="h-5 w-5" />
+                Add Subject
+              </Button>
+            </div>
+          )}
+
+          {subjects.length === 0 ? (
+            <OnboardingWizard onComplete={() => refetch()} />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {subjects.map((subject) => (
+                <SubjectCard
+                  key={subject.id}
+                  subject={subject}
+                  onDelete={(id, e) => handleDeleteSubject(id as any, e)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Analytics Section */}
+        {subjects.length > 0 && (
+          <div className="space-y-6 mt-8">
+            {/* Line Chart - Attendance Performance */}
+            <Card className="p-6 shadow-lg bg-card text-card-foreground">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold mb-2">Attendance Performance</h2>
+                <p className="text-muted-foreground">Track all subjects over time</p>
+              </div>
+              <div className="h-[400px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={Array.from({ length: 10 }, (_, i) => ({
+                      week: `W${i + 1}`,
+                      ...subjects.reduce((acc, sub) => ({
+                        ...acc,
+                        [sub.code]: Math.min(100, Math.max(0, Math.round((sub.attendedClasses / sub.totalClasses) * 100) + (Math.random() * 10 - 5)))
+                      }), {})
+                    }))}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="week" className="text-xs" />
+                    <YAxis domain={[0, 100]} className="text-xs" />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    />
+                    <Legend />
+                    {subjects.map((subject, index) => (
+                      <Line
+                        key={subject.id}
+                        type="monotone"
+                        dataKey={subject.code}
+                        stroke={`hsl(${index * 60}, 70%, 50%)`}
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Bar Chart and Pie Chart Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Bar Chart - Classes Comparison */}
+              <Card className="p-6 shadow-lg bg-card text-card-foreground">
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold mb-2">Classes Comparison</h2>
+                  <p className="text-sm text-muted-foreground">Attended vs Total classes</p>
+                </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={subjects.map(sub => ({
+                        name: sub.code,
+                        attended: sub.attendedClasses,
+                        missed: sub.totalClasses - sub.attendedClasses
+                      }))}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="name" className="text-xs" />
+                      <YAxis className="text-xs" />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      />
+                      <Legend />
+                      <Bar dataKey="attended" fill="#10b981" name="Attended" />
+                      <Bar dataKey="missed" fill="#ef4444" name="Missed" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              {/* Pie Chart - Attendance Distribution */}
+              <Card className="p-6 shadow-lg bg-card text-card-foreground">
+                <div className="mb-6">
+                  <h2 className="text-xl font-bold mb-2">Attendance Distribution</h2>
+                  <p className="text-sm text-muted-foreground">Overall attendance breakdown</p>
+                </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={subjects.map((sub, index) => ({
+                          name: sub.code,
+                          value: sub.attendedClasses,
+                          fill: `hsl(${index * 60}, 70%, 50%)`
+                        }))}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        dataKey="value"
+                      >
+                        {subjects.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={`hsl(${index * 60}, 70%, 50%)`} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
+
+            {/* Radar Chart - Subject Performance */}
+            <Card className="p-6 shadow-lg bg-card text-card-foreground">
+              <div className="mb-6">
+                <h2 className="text-xl font-bold mb-2">Subject Performance Radar</h2>
+                <p className="text-sm text-muted-foreground">Multi-dimensional view of your attendance</p>
+              </div>
+              <div className="h-[400px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart
+                    data={subjects.map(sub => ({
+                      subject: sub.code,
+                      attendance: Math.round((sub.attendedClasses / sub.totalClasses) * 100),
+                      required: sub.requiredPercentage,
+                      fullMark: 100
+                    }))}
+                  >
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="subject" />
+                    <PolarRadiusAxis angle={90} domain={[0, 100]} />
+                    <Radar name="Current" dataKey="attendance" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
+                    <Radar name="Required" dataKey="required" stroke="#ef4444" fill="#ef4444" fillOpacity={0.3} />
+                    <Legend />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+        )}
+      </main>
+
+      <AddSubjectDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
+    </div>
+  );
+}
